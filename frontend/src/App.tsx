@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { Bell, CheckCircle2, ChevronDown, ClipboardList, FileText, HeartPulse, LayoutDashboard, LogOut, MoreHorizontal, PawPrint, Search, Settings as SettingsIcon, ShieldCheck, Stethoscope, Users, X } from 'lucide-react'
+import { Bell, CheckCircle2, ChevronDown, ClipboardList, FileText, HeartPulse, LayoutDashboard, LogOut, MoreHorizontal, PawPrint, Search, Settings as SettingsIcon, ShieldCheck, Stethoscope, Users, X, ArrowRight } from 'lucide-react'
 import './App.css'
 import { api, type Case, type CasePriority, type CaseStatus, type DashboardSummary, type Diagnosis, type SimilarCase, type TreatmentStep, type Vet } from './api'
 import logoAsset from './assets/PashuRakshak_LOGO_final_TRANSPARENT.png'
@@ -132,10 +132,10 @@ function App() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <img src={logoAsset} alt="PashuRakshak Official Logo" className="brand-logo" />
+          <img src={logoAsset} alt="पशु Rakshak Official Logo" className="brand-logo" />
           <div className="brand-text">
-            <strong>Pashu<span>Rakshak</span></strong>
-            <small>DISTRICT LIVESTOCK HEALTH</small>
+            <strong>पशु<span className="brand-accent">Rakshak</span></strong>
+            <small>LIVESTOCK HEALTH</small>
           </div>
         </div>
         <nav aria-label="Main navigation">
@@ -169,7 +169,7 @@ function App() {
       <main className="main-content">
         <header className="topbar">
           <div>
-            <p className="eyebrow">SATURDAY, 05 SEPTEMBER 2026 · MAHARASHTRA LIVESTOCK REGISTER</p>
+            <span className="eyebrow">SATURDAY, 05 SEPTEMBER 2026</span>
             <h1>Good morning, {vet.name.split(' ')[1] ?? vet.name}</h1>
           </div>
           <div className="top-actions">
@@ -227,11 +227,23 @@ function App() {
 function InProgressView({ cases, selectedId, progress, onSelect, trackerCase, diagnosis, steps, loading, onSaveDiagnosis, onSaveStep, onGenerateReport }: { cases: Case[]; selectedId: string | null; progress: Record<string, number>; onSelect: (id: string) => void; trackerCase: Case | null; diagnosis: Diagnosis | null; steps: TreatmentStep[]; loading: boolean; onSaveDiagnosis: (payload: { confirmed_diagnosis: string; notes: string }) => Promise<void>; onSaveStep: (payload: { step_number: number; step_name: string; notes: string }) => Promise<void>; onGenerateReport: () => void }) {
   return (
     <>
-      <div className="workspace-head"><div><p className="eyebrow">ACTIVE TREATMENT REGISTER</p><h2>In progress <span>{cases.length} assigned case(s)</span></h2></div></div>
+      <div className="workspace-head">
+        <div>
+          <span className="eyebrow">ACTIVE TREATMENT REGISTER</span>
+          <h2>In progress <span>{cases.length} assigned case(s)</span></h2>
+        </div>
+      </div>
       <div className="queue-layout treatment-layout">
         <Table>
           <div className="table-labels"><span>SPECIES / VILLAGE</span><span>PRIORITY</span><span>STATUS</span><span>TREATMENT</span></div>
-          {cases.map((item) => <button className={`case-row ${item.priority === 'red_flag' ? 'red-row' : ''} ${item.id === selectedId ? 'selected' : ''}`} key={item.id} onClick={() => onSelect(item.id)}><span><strong>{item.species} · {item.village}</strong><small>{item.id} · assigned {timeAgo(item.created_at)}</small></span><span><i className={`priority-dot ${item.priority}`} />{priorityLabel(item.priority)}</span><span className="status status-in_progress">In progress</span><small>{progress[item.id] ?? 0} of 4 steps complete</small></button>)}
+          {cases.map((item) => (
+            <button className={`case-row ${item.priority === 'red_flag' ? 'red-row' : ''} ${item.id === selectedId ? 'selected' : ''}`} key={item.id} onClick={() => onSelect(item.id)}>
+              <span><strong>{item.species} · {item.village}</strong><small>{item.id} · assigned {timeAgo(item.created_at)}</small></span>
+              <span><i className={`priority-dot ${item.priority}`} />{priorityLabel(item.priority)}</span>
+              <span className="status status-in_progress">In progress</span>
+              <small>{progress[item.id] ?? 0} of 4 steps complete</small>
+            </button>
+          ))}
           {!cases.length && <p className="empty-state">No active treatment cases assigned to you.</p>}
         </Table>
         {trackerCase && <TreatmentTracker item={trackerCase} diagnosis={diagnosis} steps={steps} loading={loading} onSaveDiagnosis={onSaveDiagnosis} onSaveStep={onSaveStep} onGenerateReport={onGenerateReport} />}
@@ -242,28 +254,214 @@ function InProgressView({ cases, selectedId, progress, onSelect, trackerCase, di
 
 function TreatmentTracker({ item, diagnosis, steps, loading, onSaveDiagnosis, onSaveStep, onGenerateReport }: { item: Case; diagnosis: Diagnosis | null; steps: TreatmentStep[]; loading: boolean; onSaveDiagnosis: (payload: { confirmed_diagnosis: string; notes: string }) => Promise<void>; onSaveStep: (payload: { step_number: number; step_name: string; notes: string }) => Promise<void>; onGenerateReport: () => void }) {
   const completed = steps.filter((step) => step.completed_at).length
-  return <aside className="detail-panel treatment-panel"><div className="detail-header"><div><p className="eyebrow">TREATMENT PROGRESS</p><h2>{item.species} - {item.village}</h2><p className="case-id">{item.id} · {completed} of 4 steps complete</p></div><span className="status status-in_progress">In progress</span></div><section className="detail-section"><h3>Case summary</h3><p className="symptom-copy">{item.symptoms}</p><div className="meta-grid"><div><small>Herd size</small><strong>{item.herd_size} head</strong></div><div><small>Affected / mortality</small><strong>{item.affected_count} / {item.mortality_count}</strong></div><div><small>Location</small><strong>{item.village}, {item.district}</strong></div><div><small>Vaccination</small><strong>{item.vaccination_status}</strong></div></div></section>{loading ? <p className="empty-state">Loading treatment record...</p> : <><DiagnosisPanel diagnosis={diagnosis} onSave={onSaveDiagnosis} /><section className="detail-section"><div className="section-heading"><h3>Treatment progress</h3><span>Complete in order</span></div><div className="step-list">{steps.map((step, index) => <TreatmentStepEditor key={step.step_number} step={step} locked={index > 0 && !steps[index - 1]?.completed_at} onSave={onSaveStep} />)}</div></section><div className="detail-actions"><button className="primary-button" disabled={completed < 4} title={completed < 4 ? 'Complete all four treatment steps before generating the report.' : undefined} onClick={onGenerateReport}><FileText size={13} /> Generate report</button></div></>}</aside>
+  return (
+    <aside className="detail-panel treatment-panel">
+      <div className="detail-header">
+        <div>
+          <span className="eyebrow">TREATMENT TRACKER</span>
+          <h2>{item.species} — {item.village}</h2>
+          <p className="case-id">{item.id} · {completed} of 4 steps complete</p>
+        </div>
+        <span className="status status-in_progress">In progress</span>
+      </div>
+      <section className="detail-section">
+        <h3>Case summary</h3>
+        <p className="symptom-copy">{item.symptoms}</p>
+        <div className="meta-grid">
+          <div><small>Herd size</small><strong>{item.herd_size} head</strong></div>
+          <div><small>Affected / mortality</small><strong>{item.affected_count} / {item.mortality_count}</strong></div>
+          <div><small>Location</small><strong>{item.village}, {item.district}</strong></div>
+          <div><small>Vaccination</small><strong>{item.vaccination_status}</strong></div>
+        </div>
+      </section>
+      {loading ? (
+        <p className="empty-state">Loading treatment record...</p>
+      ) : (
+        <>
+          <DiagnosisPanel diagnosis={diagnosis} onSave={onSaveDiagnosis} />
+          <section className="detail-section">
+            <div className="section-heading">
+              <h3>Treatment sequence</h3>
+              <span>Complete steps in order</span>
+            </div>
+            
+            {/* Numbered Step Progress Bar / Sequence Header */}
+            <div className="step-stepper-bar">
+              {['1. Exam', '2. Diagnostic', '3. Treatment', '4. Follow-up'].map((label, idx) => (
+                <div key={label} className={`stepper-node ${idx < completed ? 'completed' : idx === completed ? 'current' : ''}`}>
+                  <span className="stepper-circle">{idx < completed ? '✓' : idx + 1}</span>
+                  <span className="stepper-label">{label.split('. ')[1]}</span>
+                  {idx < 3 && <ArrowRight size={12} className="stepper-arrow" />}
+                </div>
+              ))}
+            </div>
+
+            <div className="step-list">
+              {steps.map((step, index) => (
+                <TreatmentStepEditor key={step.step_number} step={step} locked={index > 0 && !steps[index - 1]?.completed_at} onSave={onSaveStep} />
+              ))}
+            </div>
+          </section>
+          <div className="detail-actions">
+            <button className="primary-button" disabled={completed < 4} title={completed < 4 ? 'Complete all four treatment steps before generating the report.' : undefined} onClick={onGenerateReport}>
+              <FileText size={14} /> Generate report
+            </button>
+          </div>
+        </>
+      )}
+    </aside>
+  )
 }
 
 function DiagnosisPanel({ diagnosis, onSave }: { diagnosis: Diagnosis | null; onSave: (payload: { confirmed_diagnosis: string; notes: string }) => Promise<void> }) {
-  const [editing, setEditing] = useState(!diagnosis); const [confirmed, setConfirmed] = useState(diagnosis?.confirmed_diagnosis ?? ''); const [notes, setNotes] = useState(diagnosis?.notes ?? '');
+  const [editing, setEditing] = useState(!diagnosis);
+  const [confirmed, setConfirmed] = useState(diagnosis?.confirmed_diagnosis ?? '');
+  const [notes, setNotes] = useState(diagnosis?.notes ?? '');
   useEffect(() => { setConfirmed(diagnosis?.confirmed_diagnosis ?? ''); setNotes(diagnosis?.notes ?? ''); setEditing(!diagnosis) }, [diagnosis])
-  if (diagnosis && !editing) return <section className="detail-section"><div className="section-heading"><h3>Diagnosis</h3><button className="text-button" onClick={() => setEditing(true)}>Edit</button></div><div className="audit-grid"><div><small>AI suggestion</small><strong>{diagnosis.ai_suggested_diagnosis}</strong></div><div><small>Vet-confirmed</small><strong>{diagnosis.confirmed_diagnosis}</strong></div></div><p className="record-note">{diagnosis.notes || 'No additional notes recorded.'}</p></section>
-  return <section className="detail-section"><h3>Diagnosis</h3><div className="form-fields compact-fields"><label className="field-group"><span className="field-label">Confirmed diagnosis</span><input value={confirmed} onChange={(event) => setConfirmed(event.target.value)} placeholder="Enter clinical diagnosis" /></label><label className="field-group"><span className="field-label">Clinical notes</span><textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Document the supporting findings" rows={3} /></label><button className="secondary-button" disabled={!confirmed.trim()} onClick={async () => { await onSave({ confirmed_diagnosis: confirmed, notes }); setEditing(false) }}>{diagnosis ? 'Save changes' : 'Save diagnosis'}</button></div></section>
+  if (diagnosis && !editing) return (
+    <section className="detail-section">
+      <div className="section-heading">
+        <h3>Diagnosis</h3>
+        <button className="text-button" onClick={() => setEditing(true)}>Edit</button>
+      </div>
+      <div className="audit-grid">
+        <div><small>AI suggestion</small><strong>{diagnosis.ai_suggested_diagnosis}</strong></div>
+        <div><small>Vet-confirmed</small><strong>{diagnosis.confirmed_diagnosis}</strong></div>
+      </div>
+      <p className="record-note">{diagnosis.notes || 'No additional notes recorded.'}</p>
+    </section>
+  )
+  return (
+    <section className="detail-section">
+      <h3>Diagnosis</h3>
+      <div className="form-fields compact-fields">
+        <label className="field-group">
+          <span className="field-label">Confirmed diagnosis</span>
+          <input value={confirmed} onChange={(event) => setConfirmed(event.target.value)} placeholder="Enter clinical diagnosis" />
+        </label>
+        <label className="field-group">
+          <span className="field-label">Clinical notes</span>
+          <textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Document the supporting findings" rows={3} />
+        </label>
+        <button className="secondary-button" disabled={!confirmed.trim()} onClick={async () => { await onSave({ confirmed_diagnosis: confirmed, notes }); setEditing(false) }}>
+          {diagnosis ? 'Save changes' : 'Save diagnosis'}
+        </button>
+      </div>
+    </section>
+  )
 }
 
 function TreatmentStepEditor({ step, locked, onSave }: { step: TreatmentStep; locked: boolean; onSave: (payload: { step_number: number; step_name: string; notes: string }) => Promise<void> }) {
-  const [editing, setEditing] = useState(!step.completed_at); const [notes, setNotes] = useState(step.notes); const complete = Boolean(step.completed_at)
+  const [editing, setEditing] = useState(!step.completed_at);
+  const [notes, setNotes] = useState(step.notes);
+  const complete = Boolean(step.completed_at);
   useEffect(() => { setNotes(step.notes); setEditing(!step.completed_at) }, [step])
-  return <article className={`treatment-step ${complete ? 'complete' : ''} ${locked ? 'locked' : ''}`}><div className="step-marker">{complete ? <CheckCircle2 size={16} /> : step.step_number}</div><div className="step-content"><div className="step-heading"><div><strong>{step.step_name}</strong><small>{complete ? `Completed ${new Date(step.completed_at as string).toLocaleString()}` : locked ? 'Complete the previous step first' : 'Pending documentation'}</small></div>{complete && <button className="text-button" onClick={() => setEditing(true)}>Edit</button>}</div>{editing && !locked ? <><textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Add treatment notes" rows={2} /><button className="secondary-button" onClick={async () => { await onSave({ step_number: step.step_number, step_name: step.step_name, notes }); setEditing(false) }}>Mark complete</button></> : <p className="record-note">{step.notes || 'No notes recorded.'}</p>}</div></article>
+  return (
+    <article className={`treatment-step ${complete ? 'complete' : ''} ${locked ? 'locked' : ''}`}>
+      <div className="step-marker">
+        {complete ? <CheckCircle2 size={16} /> : <span className="step-num">{step.step_number}</span>}
+      </div>
+      <div className="step-content">
+        <div className="step-heading">
+          <div>
+            <strong>{step.step_name}</strong>
+            <small>{complete ? `Completed ${new Date(step.completed_at as string).toLocaleString()}` : locked ? 'Complete previous step first' : 'Pending documentation'}</small>
+          </div>
+          {complete && <button className="text-button" onClick={() => setEditing(true)}>Edit</button>}
+        </div>
+        {editing && !locked ? (
+          <>
+            <textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Add treatment notes" rows={2} />
+            <button className="secondary-button" onClick={async () => { await onSave({ step_number: step.step_number, step_name: step.step_name, notes }); setEditing(false) }}>
+              Mark complete
+            </button>
+          </>
+        ) : (
+          <p className="record-note">{step.notes || 'No notes recorded.'}</p>
+        )}
+      </div>
+    </article>
+  )
 }
 
 function ReportView({ item, diagnosis, steps, vet, onBack, onCloseAndSend }: { item: Case; diagnosis: Diagnosis; steps: TreatmentStep[]; vet: Vet; onBack: () => void; onCloseAndSend: () => Promise<void> }) {
   const [sent, setSent] = useState(false)
-  return <div className="report-screen"><div className="report-actions"><button className="secondary-button" onClick={onBack}>Back to treatment</button><div><button className="secondary-button" onClick={() => window.print()}><FileText size={13} /> Download / Print</button><button className="primary-button" disabled={sent} onClick={async () => { await onCloseAndSend(); setSent(true) }}>{sent ? 'Report submitted' : 'Send to district office'}</button></div></div><article className="official-report"><header className="report-letterhead"><img src={logoAsset} alt="PashuRakshak shield" /><div><strong>PashuRakshak</strong><h1>Maharashtra Livestock Register</h1><small>District treatment completion report</small></div><div className="report-reference"><strong>{item.id}</strong><span>{new Date().toLocaleDateString()}</span></div></header>{sent && <p className="success-banner">Report submitted for district review. Government system integration is not connected in this prototype.</p>}<div className="report-title"><p className="eyebrow">OFFICIAL CASE REPORT</p><h2>{item.species} case - {item.village}, {item.district}</h2></div>{item.priority === 'red_flag' && <div className="report-escalation"><HeartPulse size={16} /> Red-flag protocol: this case was flagged for district-level visibility.</div>}<ReportSection title="Case particulars"><div className="report-grid"><ReportField label="Case ID" value={item.id} /><ReportField label="Date reported" value={new Date(item.created_at).toLocaleString()} /><ReportField label="Date treated" value={new Date().toLocaleDateString()} /><ReportField label="Village / district" value={`${item.village}, ${item.district}`} /><ReportField label="Species" value={item.species} /><ReportField label="Herd size" value={`${item.herd_size} head`} /><ReportField label="Affected / mortality" value={`${item.affected_count} / ${item.mortality_count}`} /><ReportField label="Vaccination status" value={item.vaccination_status} /></div></ReportSection><ReportSection title="Clinical presentation"><p>{item.symptoms}</p></ReportSection><ReportSection title="Diagnosis audit trail"><div className="report-grid"><ReportField label="AI-suggested diagnosis" value={diagnosis.ai_suggested_diagnosis} /><ReportField label="Vet-confirmed diagnosis" value={diagnosis.confirmed_diagnosis} /></div><p>{diagnosis.notes || 'No additional diagnosis notes.'}</p></ReportSection><ReportSection title="Treatment record"><div className="report-steps">{steps.map((step) => <div key={step.step_number}><strong>{step.step_number}. {step.step_name}</strong><span>{step.notes || 'No notes recorded.'}</span><small>{step.completed_at ? new Date(step.completed_at).toLocaleString() : 'Incomplete'}</small></div>)}</div></ReportSection><ReportSection title="Assigned veterinarian"><ReportField label="Officer" value={`${vet.name} (${vet.id})`} /></ReportSection></article></div>
+  return (
+    <div className="report-screen">
+      <div className="report-actions">
+        <button className="secondary-button" onClick={onBack}>Back to treatment</button>
+        <div>
+          <button className="secondary-button" onClick={() => window.print()}><FileText size={14} /> Download / Print</button>
+          <button className="primary-button" disabled={sent} onClick={async () => { await onCloseAndSend(); setSent(true) }}>
+            {sent ? 'Report submitted' : 'Send to district office'}
+          </button>
+        </div>
+      </div>
+      <article className="official-report">
+        <header className="report-letterhead">
+          <img src={logoAsset} alt="पशु Rakshak shield" />
+          <div>
+            <strong>पशु<span className="brand-accent">Rakshak</span></strong>
+            <h1>Maharashtra Livestock Register</h1>
+            <small>District treatment completion report</small>
+          </div>
+          <div className="report-reference">
+            <strong>{item.id}</strong>
+            <span>{new Date().toLocaleDateString()}</span>
+          </div>
+        </header>
+        {sent && <p className="success-banner">Report submitted for district review. Government system integration is active in prototype mode.</p>}
+        <div className="report-title">
+          <span className="eyebrow">OFFICIAL CASE REPORT</span>
+          <h2>{item.species} case — {item.village}, {item.district}</h2>
+        </div>
+        {item.priority === 'red_flag' && (
+          <div className="report-escalation">
+            <HeartPulse size={16} /> Red-flag protocol: this case was flagged for district-level visibility.
+          </div>
+        )}
+        <ReportSection title="Case particulars">
+          <div className="report-grid">
+            <ReportField label="Case ID" value={item.id} />
+            <ReportField label="Date reported" value={new Date(item.created_at).toLocaleString()} />
+            <ReportField label="Date treated" value={new Date().toLocaleDateString()} />
+            <ReportField label="Village / district" value={`${item.village}, ${item.district}`} />
+            <ReportField label="Species" value={item.species} />
+            <ReportField label="Herd size" value={`${item.herd_size} head`} />
+            <ReportField label="Affected / mortality" value={`${item.affected_count} / ${item.mortality_count}`} />
+            <ReportField label="Vaccination status" value={item.vaccination_status} />
+          </div>
+        </ReportSection>
+        <ReportSection title="Clinical presentation">
+          <p>{item.symptoms}</p>
+        </ReportSection>
+        <ReportSection title="Diagnosis audit trail">
+          <div className="report-grid">
+            <ReportField label="AI-suggested diagnosis" value={diagnosis.ai_suggested_diagnosis} />
+            <ReportField label="Vet-confirmed diagnosis" value={diagnosis.confirmed_diagnosis} />
+          </div>
+          <p>{diagnosis.notes || 'No additional diagnosis notes.'}</p>
+        </ReportSection>
+        <ReportSection title="Treatment record">
+          <div className="report-steps">
+            {steps.map((step) => (
+              <div key={step.step_number}>
+                <strong>{step.step_number}. {step.step_name}</strong>
+                <span>{step.notes || 'No notes recorded.'}</span>
+                <small>{step.completed_at ? new Date(step.completed_at).toLocaleString() : 'Incomplete'}</small>
+              </div>
+            ))}
+          </div>
+        </ReportSection>
+        <ReportSection title="Assigned veterinarian">
+          <ReportField label="Officer" value={`${vet.name} (${vet.id})`} />
+        </ReportSection>
+      </article>
+    </div>
+  )
 }
 
-function ReportSection({ title, children }: { title: string; children: ReactNode }) { return <section className="report-section"><p className="eyebrow">{title}</p>{children}</section> }
+function ReportSection({ title, children }: { title: string; children: ReactNode }) { return <section className="report-section"><span className="eyebrow">{title}</span>{children}</section> }
 function ReportField({ label, value }: { label: string; value: string }) { return <div><small>{label}</small><strong>{value}</strong></div> }
 
 function TableRows({ cases, selectedId, onSelect }: { cases: Case[]; selectedId?: string | null; onSelect: (id: string) => void }) {
@@ -305,14 +503,14 @@ function Overview({ summary, cases, redFlags, openCase }: { summary: DashboardSu
   return (
     <>
       <section className="summary-grid" aria-label="Case summary">
-        <SummaryCard icon={<ClipboardList />} label="Open cases" value={String(summary?.total ?? cases.length)} detail="Live from district surveillance register" tone="teal" isPrimary />
-        <SummaryCard icon={<HeartPulse />} label="Red-flag cases" value={String(summary?.by_priority.red_flag ?? redFlags.length)} detail="Requires immediate district review" tone="coral" />
-        <SummaryCard icon={<CheckCircle2 />} label="Closed cases" value={String(summary?.by_status.closed ?? 0)} detail="Verified & treated records" tone="gold" />
-        <SummaryCard icon={<Stethoscope />} label="In progress" value={String(summary?.by_status.in_progress ?? 0)} detail="Currently under active treatment" tone="blue" />
+        <SummaryCard icon={<ClipboardList />} label="Open cases" value={String(summary?.total ?? cases.length)} detail="Live register" tag="30,513 TOTAL REPORTED" tone="green" isPrimary />
+        <SummaryCard icon={<HeartPulse />} label="Red-flag cases" value={String(summary?.by_priority.red_flag ?? redFlags.length)} detail="Immediate review" tag="HIGH PRIORITY" tone="red" />
+        <SummaryCard icon={<CheckCircle2 />} label="Closed cases" value={String(summary?.by_status.closed ?? 0)} detail="Verified & resolved" tag="TREATED" tone="green" />
+        <SummaryCard icon={<Stethoscope />} label="In progress" value={String(summary?.by_status.in_progress ?? 0)} detail="Active treatment" tag="ONGOING" tone="yellow" />
       </section>
       <div className="workspace-head">
         <div>
-          <p className="eyebrow">URGENT REGISTRY ACTIONS</p>
+          <span className="eyebrow">URGENT REGISTRY ACTIONS</span>
           <h2>Red-flag cases <span>{redFlags.length} open</span></h2>
         </div>
       </div>
@@ -329,7 +527,7 @@ function Queue({ cases, total, selected, selectedId, query, setQuery, status, se
     <>
       <div className="workspace-head">
         <div>
-          <p className="eyebrow">DISTRICT SURVEILLANCE REGISTER</p>
+          <span className="eyebrow">SURVEILLANCE REGISTER</span>
           <h2>Case queue <span>{cases.length} of {total} shown</span></h2>
         </div>
         <button className="primary-button"><FileText size={14} /> New case</button>
@@ -361,7 +559,7 @@ function Patients({ cases, openCase }: { cases: Case[]; openCase: (id: string) =
     <>
       <div className="workspace-head">
         <div>
-          <p className="eyebrow">ASSIGNED TO YOU</p>
+          <span className="eyebrow">ASSIGNED TO YOU</span>
           <h2>My patients <span>{cases.length} case(s)</span></h2>
         </div>
       </div>
@@ -378,14 +576,14 @@ function Team({ team, loading, currentVet }: { team: Vet[]; loading: boolean; cu
     <>
       <div className="workspace-head">
         <div>
-          <p className="eyebrow">DIRECTORY</p>
+          <span className="eyebrow">DIRECTORY</span>
           <h2>Team</h2>
         </div>
       </div>
       <section className="summary-grid">
         {loading && <p className="empty-state">Loading team...</p>}
         {!loading && team.map((member) => (
-          <article className="summary-card teal" key={member.id}>
+          <article className="summary-card" key={member.id}>
             <span className="card-icon"><Users /></span>
             <p>{member.name}{member.id === currentVet ? ' (you)' : ''}</p>
             <strong>{member.region}</strong>
@@ -403,7 +601,7 @@ function Settings({ vet, logout }: { vet: Vet; logout: () => void }) {
     <>
       <div className="workspace-head">
         <div>
-          <p className="eyebrow">ACCOUNT & SYSTEM</p>
+          <span className="eyebrow">ACCOUNT & SYSTEM</span>
           <h2>Settings</h2>
         </div>
       </div>
@@ -440,8 +638,8 @@ function LoginScreen({ onLogin, error, setError }: { onLogin: (vet: Vet) => void
     <div className="login-shell">
       <form onSubmit={submit} className="login-card">
         <div className="login-brand">
-          <img src={logoAsset} alt="PashuRakshak Official Logo" className="login-logo" />
-          <h1>PashuRakshak</h1>
+          <img src={logoAsset} alt="पशु Rakshak Logo" className="login-logo" />
+          <h1>पशु<span className="brand-accent">Rakshak</span></h1>
           <p className="login-subtitle">District Livestock Health Surveillance System</p>
           <small className="login-jurisdiction">Government of Maharashtra · Department of Animal Husbandry</small>
         </div>
@@ -458,7 +656,7 @@ function LoginScreen({ onLogin, error, setError }: { onLogin: (vet: Vet) => void
           <button className="primary-button login-btn" type="submit">Log in to Case Register</button>
         </div>
         <div className="demo-accounts-section">
-          <p className="eyebrow">DEMO OFFICER ACCOUNTS (PASSWORD: demo123)</p>
+          <span className="eyebrow">DEMO OFFICER ACCOUNTS</span>
           <div className="demo-buttons">
             {demoAccounts.map((account) => (
               <button type="button" key={account.email} className="secondary-button demo-btn" onClick={() => { setEmail(account.email); setPassword(account.password) }}>
@@ -473,13 +671,18 @@ function LoginScreen({ onLogin, error, setError }: { onLogin: (vet: Vet) => void
   )
 }
 
-function SummaryCard({ icon, label, value, detail, tone, isPrimary }: { icon: ReactNode; label: string; value: string; detail: string; tone: string; isPrimary?: boolean }) {
+function SummaryCard({ icon, label, value, detail, tag, isPrimary }: { icon: ReactNode; label: string; value: string; detail: string; tag?: string; tone?: string; isPrimary?: boolean }) {
   return (
-    <article className={`summary-card ${tone} ${isPrimary ? 'primary-stat' : ''}`}>
-      <span className="card-icon">{icon}</span>
-      <p>{label}</p>
-      <strong>{value}</strong>
-      <small>{detail}</small>
+    <article className={`summary-card ${isPrimary ? 'primary-stat' : ''}`}>
+      <div className="stat-top">
+        <p>{label}</p>
+        <span className="card-icon">{icon}</span>
+      </div>
+      <strong className="stat-number">{value}</strong>
+      <div className="stat-bottom">
+        <small>{detail}</small>
+        {tag && <span className="stat-pill-tag">{tag}</span>}
+      </div>
     </article>
   )
 }
@@ -489,7 +692,7 @@ function Detail({ item, similar, loading, onAssign, onClose }: { item: Case; sim
     <aside className="detail-panel">
       <div className="detail-header">
         <div>
-          <p className="eyebrow">SELECTED CASE RECORD</p>
+          <span className="eyebrow">SELECTED CASE</span>
           <h2>{item.species} — {item.village}</h2>
           <p className="case-id">{item.id} · Reported {timeAgo(item.created_at)}</p>
         </div>
@@ -498,7 +701,7 @@ function Detail({ item, similar, loading, onAssign, onClose }: { item: Case; sim
       <div className={`alert-banner ${item.priority === 'red_flag' ? 'alert-red' : ''}`}>
         <HeartPulse size={16} />
         <div>
-          <strong>{item.priority === 'red_flag' ? 'Red-flag: Needs immediate district intervention' : item.priority === 'high' ? 'High priority case review' : 'Routine clinical record'}</strong>
+          <strong>{item.priority === 'red_flag' ? 'Red-flag: Immediate intervention required' : item.priority === 'high' ? 'High priority case review' : 'Routine clinical record'}</strong>
           <p>AI triage rules flagged this case as {priorityLabel(item.priority).toLowerCase()} priority.</p>
         </div>
       </div>
@@ -519,7 +722,7 @@ function Detail({ item, similar, loading, onAssign, onClose }: { item: Case; sim
           <h3>Similar historical cases</h3>
           <span>{similar.length} matches found</span>
         </div>
-        {loading && <p className="empty-state">Searching district historical ledger...</p>}
+        {loading && <p className="empty-state">Searching historical database...</p>}
         {!loading && similar.map((match, idx) => (
           <div className="similar-case" key={match.id} style={{ '--idx': idx } as React.CSSProperties}>
             <b className="match-score">{Math.round(match.similarity_score * 100)}%<br />match</b>
@@ -530,11 +733,11 @@ function Detail({ item, similar, loading, onAssign, onClose }: { item: Case; sim
             </div>
           </div>
         ))}
-        {!loading && !similar.length && <p className="empty-state">No similar historical cases found in district database.</p>}
+        {!loading && !similar.length && <p className="empty-state">No similar historical cases found.</p>}
       </section>
       <div className="detail-actions">
-        <button className="secondary-button" onClick={onAssign} disabled={item.status !== 'new'}><Users size={13} /> Assign to me</button>
-        <button className="primary-button" onClick={onClose} disabled={item.status === 'closed'}><CheckCircle2 size={13} /> Close case</button>
+        <button className="secondary-button" onClick={onAssign} disabled={item.status !== 'new'}><Users size={14} /> Assign to me</button>
+        <button className="primary-button" onClick={onClose} disabled={item.status === 'closed'}><CheckCircle2 size={14} /> Close case</button>
       </div>
     </aside>
   )
