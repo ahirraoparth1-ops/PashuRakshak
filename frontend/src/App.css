@@ -8,7 +8,7 @@
 .app-shell {
   min-height: 100vh;
   display: flex;
-  background-color: var(--mint-tint);
+  background-color: var(--app-bg);
   color: var(--ink);
   font-family: var(--font-sans);
 }
@@ -995,7 +995,7 @@ nav a b {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  background-color: var(--mint-tint);
+  background-color: var(--app-bg);
   padding: 24px;
 }
 
