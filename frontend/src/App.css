@@ -49,15 +49,16 @@
 .brand-text strong {
   font-family: var(--font-sans);
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 700;
   color: #FFFFFF;
-  letter-spacing: -0.4px;
+  letter-spacing: 0.6px;
   display: block;
   line-height: 1.15;
 }
 
 .brand-accent {
   color: var(--brand-green) !important;
+  margin-left: 2px;
 }
 
 .brand-text small {
