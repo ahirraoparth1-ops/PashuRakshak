@@ -1,12 +1,10 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { ArrowLeft, Bell, CheckCircle2, ChevronDown, ClipboardList, FileText, HeartPulse, LayoutDashboard, LogOut, PawPrint, Search, Settings as SettingsIcon, ShieldCheck, Stethoscope, Users, ArrowRight } from 'lucide-react'
+import { Bell, CheckCircle2, ChevronDown, ClipboardList, FileText, HeartPulse, LayoutDashboard, LogOut, MoreHorizontal, PawPrint, Search, Settings as SettingsIcon, ShieldCheck, Stethoscope, Users, X, ArrowRight } from 'lucide-react'
 import './App.css'
 import { api, type Case, type CasePriority, type CaseStatus, type DashboardSummary, type Diagnosis, type SimilarCase, type TreatmentStep, type Vet } from './api'
 import logoAsset from './assets/PashuRakshak_LOGO_final_TRANSPARENT.png'
 
 type NavKey = 'overview' | 'queue' | 'in_progress' | 'patients' | 'team' | 'settings'
-type QueueViewMode = 'list' | 'detail'
-
 const navItems: { key: NavKey; label: string; icon: typeof LayoutDashboard }[] = [
   { key: 'overview', label: 'Overview', icon: LayoutDashboard },
   { key: 'queue', label: 'Case queue', icon: ClipboardList },
@@ -46,7 +44,6 @@ function App() {
   const [vet, setVet] = useState<Vet | null>(null);
   const [loginError, setLoginError] = useState('');
   const [activeNav, setActiveNav] = useState<NavKey>('overview');
-  const [queueView, setQueueView] = useState<QueueViewMode>('list');
   const [cases, setCases] = useState<Case[]>([]);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -54,6 +51,7 @@ function App() {
   const [similarLoading, setSimilarLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'' | CaseStatus>('');
+  const [showDetail, setShowDetail] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [team, setTeam] = useState<Vet[]>([]);
   const [teamLoading, setTeamLoading] = useState(false);
@@ -110,11 +108,7 @@ function App() {
   const redFlagCases = cases.filter((item) => item.priority === 'red_flag');
 
   const updateCase = (updated: Case) => setCases((previous) => previous.map((item) => item.id === updated.id ? updated : item));
-  const openCase = (id: string) => {
-    setSelectedId(id);
-    setQueueView('detail');
-    setActiveNav('queue');
-  };
+  const openCase = (id: string) => { setSelectedId(id); setShowDetail(true); setActiveNav('queue') };
   const openTreatment = (id: string) => { setTrackerSelectedId(id); setReportCaseId(null); setActiveNav('in_progress') }
   const assignAndOpenTreatment = async (id: string) => { const updated = await api.assignCase(id); updateCase(updated); openTreatment(id) }
   const trackerCase = inProgressCases.find((item) => item.id === trackerSelectedId) ?? null
@@ -195,11 +189,11 @@ function App() {
             setQuery={setQuery}
             status={statusFilter}
             setStatus={setStatusFilter}
-            queueView={queueView}
-            setQueueView={setQueueView}
+            showDetail={showDetail}
+            setShowDetail={setShowDetail}
             similar={similarCases}
             similarLoading={similarLoading}
-            onSelectRow={(id) => { setSelectedId(id); setQueueView('detail'); }}
+            onSelect={(id) => { setSelectedId(id); setShowDetail(true) }}
             onAssign={assignAndOpenTreatment}
             onClose={(id) => api.closeCase(id).then(updateCase)}
           />
@@ -291,6 +285,7 @@ function TreatmentTracker({ item, diagnosis, steps, loading, onSaveDiagnosis, on
               <span>Complete steps in order</span>
             </div>
             
+            {/* Numbered Step Progress Bar / Sequence Header */}
             <div className="step-stepper-bar">
               {['1. Exam', '2. Diagnostic', '3. Treatment', '4. Follow-up'].map((label, idx) => (
                 <div key={label} className={`stepper-node ${idx < completed ? 'completed' : idx === completed ? 'current' : ''}`}>
@@ -492,7 +487,7 @@ function TableRows({ cases, selectedId, onSelect }: { cases: Case[]; selectedId?
 
 function Table({ children }: { children: ReactNode }) {
   return (
-    <section className="queue-panel full-width-table">
+    <section className="queue-panel">
       <div className="table-labels">
         <span>SPECIES / REPORTER</span>
         <span>PRIORITY</span>
@@ -527,52 +522,7 @@ function Overview({ summary, cases, redFlags, openCase }: { summary: DashboardSu
   )
 }
 
-function Queue({
-  cases,
-  total,
-  selected,
-  selectedId,
-  query,
-  setQuery,
-  status,
-  setStatus,
-  queueView,
-  setQueueView,
-  similar,
-  similarLoading,
-  onSelectRow,
-  onAssign,
-  onClose,
-}: {
-  cases: Case[];
-  total: number;
-  selected: Case | null;
-  selectedId: string | null;
-  query: string;
-  setQuery: (value: string) => void;
-  status: '' | CaseStatus;
-  setStatus: (value: '' | CaseStatus) => void;
-  queueView: QueueViewMode;
-  setQueueView: (view: QueueViewMode) => void;
-  similar: SimilarCase[];
-  similarLoading: boolean;
-  onSelectRow: (id: string) => void;
-  onAssign: (id: string) => void;
-  onClose: (id: string) => void;
-}) {
-  if (queueView === 'detail' && selected) {
-    return (
-      <FullPageDetail
-        item={selected}
-        similar={similar}
-        loading={similarLoading}
-        onBack={() => setQueueView('list')}
-        onAssign={() => onAssign(selected.id)}
-        onClose={() => onClose(selected.id)}
-      />
-    )
-  }
-
+function Queue({ cases, total, selected, selectedId, query, setQuery, status, setStatus, showDetail, setShowDetail, similar, similarLoading, onSelect, onAssign, onClose }: { cases: Case[]; total: number; selected: Case | null; selectedId: string | null; query: string; setQuery: (value: string) => void; status: '' | CaseStatus; setStatus: (value: '' | CaseStatus) => void; showDetail: boolean; setShowDetail: (value: boolean) => void; similar: SimilarCase[]; similarLoading: boolean; onSelect: (id: string) => void; onAssign: (id: string) => void; onClose: (id: string) => void }) {
   return (
     <>
       <div className="workspace-head">
@@ -582,7 +532,7 @@ function Queue({
         </div>
         <button className="primary-button"><FileText size={14} /> New case</button>
       </div>
-      <div className="full-width-queue-layout">
+      <div className="queue-layout">
         <Table>
           <div className="filters">
             <label className="search-box">
@@ -594,121 +544,13 @@ function Queue({
             </select>
             <button className="filter-button"><ShieldCheck size={14} /> Filters</button>
           </div>
-          <TableRows cases={cases} selectedId={selectedId} onSelect={onSelectRow} />
+          <TableRows cases={cases} selectedId={selectedId} onSelect={onSelect} />
           {!cases.length && <p className="empty-state">No cases match this search.</p>}
         </Table>
+        {showDetail && <button className="mobile-close" aria-label="Close case details" onClick={() => setShowDetail(false)}><X size={16} /></button>}
+        {selected && <Detail item={selected} similar={similar} loading={similarLoading} onAssign={() => onAssign(selected.id)} onClose={() => onClose(selected.id)} />}
       </div>
     </>
-  )
-}
-
-function FullPageDetail({
-  item,
-  similar,
-  loading,
-  onBack,
-  onAssign,
-  onClose,
-}: {
-  item: Case;
-  similar: SimilarCase[];
-  loading: boolean;
-  onBack: () => void;
-  onAssign: () => void;
-  onClose: () => void;
-}) {
-  return (
-    <div className="full-page-detail">
-      <div className="detail-page-nav">
-        <button className="secondary-button back-btn" onClick={onBack}>
-          <ArrowLeft size={14} /> Back to case queue
-        </button>
-      </div>
-
-      <article className="detail-page-card">
-        <div className="detail-header full-detail-header">
-          <div>
-            <div className="header-badges">
-              <span className="eyebrow">SELECTED CASE RECORD</span>
-              <span className={`status status-${item.status}`}>{statusLabel(item.status)}</span>
-              <span className={`status priority-pill ${item.priority === 'red_flag' ? 'status-new' : item.priority === 'high' ? 'status-assigned' : 'status-closed'}`}>
-                {priorityLabel(item.priority)}
-              </span>
-            </div>
-            <h2>{item.species} — {item.village}</h2>
-            <p className="case-id">{item.id} · Reported {timeAgo(item.created_at)}</p>
-          </div>
-          <div className="detail-header-actions">
-            <button className="secondary-button" onClick={onAssign} disabled={item.status !== 'new'}>
-              <Users size={14} /> Assign to me
-            </button>
-            <button className="primary-button" onClick={onClose} disabled={item.status === 'closed'}>
-              <CheckCircle2 size={14} /> Close case
-            </button>
-          </div>
-        </div>
-
-        <div className={`alert-banner ${item.priority === 'red_flag' ? 'alert-red' : ''}`}>
-          <HeartPulse size={16} />
-          <div>
-            <strong>
-              {item.priority === 'red_flag'
-                ? 'Red-flag: Immediate intervention required'
-                : item.priority === 'high'
-                ? 'High priority case review'
-                : 'Routine clinical record'}
-            </strong>
-            <p>AI triage rules flagged this case as {priorityLabel(item.priority).toLowerCase()} priority.</p>
-          </div>
-        </div>
-
-        <section className="detail-section">
-          <h3>Reported symptoms & clinical presentation</h3>
-          <p className="symptom-copy full-symptom-copy">{item.symptoms}</p>
-          
-          <div className="meta-grid full-meta-grid">
-            <div><small>Herd size</small><strong>{item.herd_size} head</strong></div>
-            <div><small>Affected animals</small><strong>{item.affected_count} animals</strong></div>
-            <div><small>Mortality count</small><strong>{item.mortality_count} animals</strong></div>
-            <div><small>Vaccination status</small><strong>{item.vaccination_status}</strong></div>
-            <div><small>Reported by</small><strong>{item.reported_by}</strong></div>
-            <div><small>Location / District</small><strong>{item.village}, {item.district}</strong></div>
-          </div>
-        </section>
-
-        <section className="detail-section">
-          <div className="section-heading">
-            <h3>Similar historical cases</h3>
-            <span>{similar.length} matches found</span>
-          </div>
-          {loading && <p className="empty-state">Searching historical database...</p>}
-          {!loading && (
-            <div className="similar-cases-grid">
-              {similar.map((match, idx) => (
-                <div className="similar-case-card" key={match.id} style={{ '--idx': idx } as React.CSSProperties}>
-                  <div className="similar-card-top">
-                    <b className="match-score">{Math.round(match.similarity_score * 100)}% match</b>
-                    <strong>{match.confirmed_diagnosis}</strong>
-                  </div>
-                  <p>{match.treatment_summary}</p>
-                  <small>{match.outcome}</small>
-                </div>
-              ))}
-            </div>
-          )}
-          {!loading && !similar.length && <p className="empty-state">No similar historical cases found.</p>}
-        </section>
-
-        <div className="detail-actions full-page-actions">
-          <button className="secondary-button" onClick={onAssign} disabled={item.status !== 'new'}>
-            <Users size={14} /> Assign to me
-          </button>
-          <button className="primary-button" onClick={onClose} disabled={item.status === 'closed'}>
-            <CheckCircle2 size={14} /> Close case
-          </button>
-        </div>
-      </article>
-    </div>
   )
 }
 
@@ -842,6 +684,62 @@ function SummaryCard({ icon, label, value, detail, tag, isPrimary }: { icon: Rea
         {tag && <span className="stat-pill-tag">{tag}</span>}
       </div>
     </article>
+  )
+}
+
+function Detail({ item, similar, loading, onAssign, onClose }: { item: Case; similar: SimilarCase[]; loading: boolean; onAssign: () => void; onClose: () => void }) {
+  return (
+    <aside className="detail-panel">
+      <div className="detail-header">
+        <div>
+          <span className="eyebrow">SELECTED CASE</span>
+          <h2>{item.species} — {item.village}</h2>
+          <p className="case-id">{item.id} · Reported {timeAgo(item.created_at)}</p>
+        </div>
+        <button className="more-button" aria-label="More case actions"><MoreHorizontal /></button>
+      </div>
+      <div className={`alert-banner ${item.priority === 'red_flag' ? 'alert-red' : ''}`}>
+        <HeartPulse size={16} />
+        <div>
+          <strong>{item.priority === 'red_flag' ? 'Red-flag: Immediate intervention required' : item.priority === 'high' ? 'High priority case review' : 'Routine clinical record'}</strong>
+          <p>AI triage rules flagged this case as {priorityLabel(item.priority).toLowerCase()} priority.</p>
+        </div>
+      </div>
+      <section className="detail-section">
+        <h3>Reported symptoms & clinical presentation</h3>
+        <p className="symptom-copy">{item.symptoms}</p>
+        <div className="meta-grid">
+          <div><small>Herd size</small><strong>{item.herd_size} head</strong></div>
+          <div><small>Affected</small><strong>{item.affected_count} animals</strong></div>
+          <div><small>Mortality</small><strong>{item.mortality_count} animals</strong></div>
+          <div><small>Vaccination</small><strong>{item.vaccination_status}</strong></div>
+          <div><small>Reported by</small><strong>{item.reported_by}</strong></div>
+          <div><small>Location</small><strong>{item.village}, {item.district}</strong></div>
+        </div>
+      </section>
+      <section className="detail-section">
+        <div className="section-heading">
+          <h3>Similar historical cases</h3>
+          <span>{similar.length} matches found</span>
+        </div>
+        {loading && <p className="empty-state">Searching historical database...</p>}
+        {!loading && similar.map((match, idx) => (
+          <div className="similar-case" key={match.id} style={{ '--idx': idx } as React.CSSProperties}>
+            <b className="match-score">{Math.round(match.similarity_score * 100)}%<br />match</b>
+            <div>
+              <strong>{match.confirmed_diagnosis}</strong>
+              <p>{match.treatment_summary}</p>
+              <small>{match.outcome}</small>
+            </div>
+          </div>
+        ))}
+        {!loading && !similar.length && <p className="empty-state">No similar historical cases found.</p>}
+      </section>
+      <div className="detail-actions">
+        <button className="secondary-button" onClick={onAssign} disabled={item.status !== 'new'}><Users size={14} /> Assign to me</button>
+        <button className="primary-button" onClick={onClose} disabled={item.status === 'closed'}><CheckCircle2 size={14} /> Close case</button>
+      </div>
+    </aside>
   )
 }
 
