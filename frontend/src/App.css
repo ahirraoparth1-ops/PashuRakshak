@@ -29,12 +29,12 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 0 4px 36px;
+  padding: 0 4px 28px;
 }
 
 .brand-logo {
-  width: 72px;
-  height: 72px;
+  width: 100px;
+  height: 100px;
   object-fit: contain;
   flex-shrink: 0;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
