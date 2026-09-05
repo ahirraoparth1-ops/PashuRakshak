@@ -35,6 +35,9 @@ HISTORICAL = [
     {"id": "h-05", "species": "Goat", "symptoms": "Watery diarrhoea weakness dehydration young goats", "season": "Monsoon", "region": "Anand Gujarat", "confirmed_diagnosis": "Enteric infection", "treatment_summary": "Oral rehydration and observation", "outcome": "Recovered"},
 ]
 
+DIAGNOSES: dict[str, dict] = {}
+TREATMENT_STEPS: dict[str, list[dict]] = {}
+
 class LoginRequest(BaseModel):
     email: str
     password: str
@@ -96,7 +99,7 @@ def get_case(case_id: str):
 def assign_case(case_id: str):
     case = find_case(case_id)
     case["assigned_vet_id"] = "vet-001"
-    case["status"] = "assigned"
+    case["status"] = "in_progress"
     return case
 
 @app.get("/cases/{case_id}/similar")
@@ -107,20 +110,35 @@ def similar_cases(case_id: str):
     ranked = sorted(zip(scores, HISTORICAL), key=lambda pair: pair[0], reverse=True)[:5]
     return [{**item, "similarity_score": round(float(score), 3)} for score, item in ranked]
 
+@app.get("/cases/{case_id}/diagnosis")
+def get_diagnosis(case_id: str):
+    find_case(case_id)
+    return DIAGNOSES.get(case_id)
+
 @app.post("/cases/{case_id}/diagnosis")
 def save_diagnosis(case_id: str, payload: DiagnosisRequest):
     find_case(case_id)
-    return {"id": str(uuid4()), "case_id": case_id, "vet_id": "vet-001", "ai_suggested_diagnosis": "Foot-and-mouth disease", **payload.model_dump(), "created_at": datetime.utcnow().isoformat()}
+    record = {"case_id": case_id, "vet_id": "vet-001", "ai_suggested_diagnosis": "Foot-and-mouth disease", **payload.model_dump(), "created_at": datetime.utcnow().isoformat()}
+    DIAGNOSES[case_id] = record
+    return record
 
 @app.get("/cases/{case_id}/treatment-steps")
 def get_treatment_steps(case_id: str):
     find_case(case_id)
-    return [{"step_number": number, "step_name": name, "notes": "", "completed_at": None} for number, name in enumerate(("Examination", "Diagnostic", "Treatment", "Follow-up"), 1)]
+    if case_id not in TREATMENT_STEPS:
+        TREATMENT_STEPS[case_id] = [{"step_number": number, "step_name": name, "notes": "", "proof_url": None, "completed_at": None} for number, name in enumerate(("Examination", "Diagnostic", "Treatment", "Follow-up"), 1)]
+    return TREATMENT_STEPS[case_id]
 
 @app.post("/cases/{case_id}/treatment-steps")
 def save_treatment_step(case_id: str, payload: TreatmentStepRequest):
     find_case(case_id)
-    return {"id": str(uuid4()), "case_id": case_id, **payload.model_dump(), "completed_at": datetime.utcnow().isoformat()}
+    steps = TREATMENT_STEPS.setdefault(case_id, get_treatment_steps(case_id))
+    updated = {**payload.model_dump(), "completed_at": datetime.utcnow().isoformat()}
+    for index, step in enumerate(steps):
+        if step["step_number"] == payload.step_number:
+            steps[index] = updated
+            break
+    return updated
 
 @app.post("/cases/{case_id}/lab-request")
 def request_lab(case_id: str, payload: LabRequest = LabRequest()):

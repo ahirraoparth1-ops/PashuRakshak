@@ -1,13 +1,14 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Bell, CheckCircle2, ChevronDown, ClipboardList, FileText, HeartPulse, LayoutDashboard, LogOut, MoreHorizontal, PawPrint, Search, Settings as SettingsIcon, ShieldCheck, Stethoscope, Users, X } from 'lucide-react'
 import './App.css'
-import { api, type Case, type CasePriority, type CaseStatus, type DashboardSummary, type SimilarCase, type Vet } from './api'
+import { api, type Case, type CasePriority, type CaseStatus, type DashboardSummary, type Diagnosis, type SimilarCase, type TreatmentStep, type Vet } from './api'
 import logoAsset from './assets/PashuRakshak_LOGO_final_TRANSPARENT.png'
 
-type NavKey = 'overview' | 'queue' | 'patients' | 'team' | 'settings'
+type NavKey = 'overview' | 'queue' | 'in_progress' | 'patients' | 'team' | 'settings'
 const navItems: { key: NavKey; label: string; icon: typeof LayoutDashboard }[] = [
   { key: 'overview', label: 'Overview', icon: LayoutDashboard },
   { key: 'queue', label: 'Case queue', icon: ClipboardList },
+  { key: 'in_progress', label: 'In progress', icon: Stethoscope },
   { key: 'patients', label: 'My patients', icon: PawPrint },
   { key: 'team', label: 'Team', icon: Users },
 ]
@@ -54,6 +55,12 @@ function App() {
   const [loadError, setLoadError] = useState('');
   const [team, setTeam] = useState<Vet[]>([]);
   const [teamLoading, setTeamLoading] = useState(false);
+  const [trackerSelectedId, setTrackerSelectedId] = useState<string | null>(null)
+  const [diagnosis, setDiagnosis] = useState<Diagnosis | null>(null)
+  const [treatmentSteps, setTreatmentSteps] = useState<TreatmentStep[]>([])
+  const [treatmentLoading, setTreatmentLoading] = useState(false)
+  const [treatmentProgress, setTreatmentProgress] = useState<Record<string, number>>({})
+  const [reportCaseId, setReportCaseId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!vet) return;
@@ -77,6 +84,24 @@ function App() {
     api.getVets().then(setTeam).catch(() => setTeam([])).finally(() => setTeamLoading(false))
   }, [activeNav, vet])
 
+  const inProgressCases = cases.filter((item) => item.status === 'in_progress' && item.assigned_vet_id === vet?.id)
+
+  useEffect(() => {
+    if (!vet || !inProgressCases.length) return
+    Promise.all(inProgressCases.map(async (item) => [item.id, (await api.getTreatmentSteps(item.id)).filter((step) => step.completed_at).length] as const))
+      .then((entries) => setTreatmentProgress(Object.fromEntries(entries)))
+      .catch(() => undefined)
+  }, [vet, cases])
+
+  useEffect(() => {
+    if (activeNav !== 'in_progress' || !trackerSelectedId) return
+    setTreatmentLoading(true)
+    Promise.all([api.getDiagnosis(trackerSelectedId), api.getTreatmentSteps(trackerSelectedId)])
+      .then(([savedDiagnosis, steps]) => { setDiagnosis(savedDiagnosis); setTreatmentSteps(steps) })
+      .catch(() => { setDiagnosis(null); setTreatmentSteps([]) })
+      .finally(() => setTreatmentLoading(false))
+  }, [activeNav, trackerSelectedId])
+
   const selectedCase = cases.find((item) => item.id === selectedId) ?? null;
   const filteredCases = cases.filter((item) => `${item.species} ${item.reported_by} ${item.village} ${item.id}`.toLowerCase().includes(query.toLowerCase()));
   const myCases = cases.filter((item) => item.assigned_vet_id === vet?.id);
@@ -84,6 +109,22 @@ function App() {
 
   const updateCase = (updated: Case) => setCases((previous) => previous.map((item) => item.id === updated.id ? updated : item));
   const openCase = (id: string) => { setSelectedId(id); setShowDetail(true); setActiveNav('queue') };
+  const openTreatment = (id: string) => { setTrackerSelectedId(id); setReportCaseId(null); setActiveNav('in_progress') }
+  const assignAndOpenTreatment = async (id: string) => { const updated = await api.assignCase(id); updateCase(updated); openTreatment(id) }
+  const trackerCase = inProgressCases.find((item) => item.id === trackerSelectedId) ?? null
+  const saveStep = async (payload: { step_number: number; step_name: string; notes: string }) => {
+    if (!trackerSelectedId) return
+    const saved = await api.saveTreatmentStep(trackerSelectedId, payload)
+    setTreatmentSteps((previous) => {
+      const next = previous.map((step) => step.step_number === saved.step_number ? saved : step)
+      setTreatmentProgress((current) => ({ ...current, [trackerSelectedId]: next.filter((step) => step.completed_at).length }))
+      return next
+    })
+  }
+  const saveDiagnosis = async (payload: { confirmed_diagnosis: string; notes: string }) => {
+    if (trackerSelectedId) setDiagnosis(await api.saveDiagnosis(trackerSelectedId, payload))
+  }
+  const closeAndRefresh = async (id: string) => { updateCase(await api.closeCase(id)); setReportCaseId(null); setActiveNav('in_progress') }
 
   if (!vet) return <LoginScreen onLogin={setVet} error={loginError} setError={setLoginError} />
 
@@ -103,6 +144,7 @@ function App() {
               <Icon size={16} />
               {label}
               {key === 'queue' && <b>{cases.length}</b>}
+              {key === 'in_progress' && <b>{inProgressCases.length}</b>}
               {key === 'patients' && myCases.length > 0 && <b>{myCases.length}</b>}
             </a>
           ))}
@@ -152,9 +194,27 @@ function App() {
             similar={similarCases}
             similarLoading={similarLoading}
             onSelect={(id) => { setSelectedId(id); setShowDetail(true) }}
-            onAssign={(id) => api.assignCase(id).then(updateCase)}
+            onAssign={assignAndOpenTreatment}
             onClose={(id) => api.closeCase(id).then(updateCase)}
           />
+        )}
+        {activeNav === 'in_progress' && !reportCaseId && (
+          <InProgressView
+            cases={inProgressCases}
+            selectedId={trackerSelectedId}
+            progress={treatmentProgress}
+            onSelect={openTreatment}
+            trackerCase={trackerCase}
+            diagnosis={diagnosis}
+            steps={treatmentSteps}
+            loading={treatmentLoading}
+            onSaveDiagnosis={saveDiagnosis}
+            onSaveStep={saveStep}
+            onGenerateReport={() => trackerCase && setReportCaseId(trackerCase.id)}
+          />
+        )}
+        {activeNav === 'in_progress' && reportCaseId && trackerCase && diagnosis && (
+          <ReportView item={trackerCase} diagnosis={diagnosis} steps={treatmentSteps} vet={vet} onBack={() => setReportCaseId(null)} onCloseAndSend={() => closeAndRefresh(trackerCase.id)} />
         )}
         {activeNav === 'patients' && <Patients cases={myCases} openCase={openCase} />}
         {activeNav === 'team' && <Team team={team} loading={teamLoading} currentVet={vet.id} />}
@@ -163,6 +223,48 @@ function App() {
     </div>
   )
 }
+
+function InProgressView({ cases, selectedId, progress, onSelect, trackerCase, diagnosis, steps, loading, onSaveDiagnosis, onSaveStep, onGenerateReport }: { cases: Case[]; selectedId: string | null; progress: Record<string, number>; onSelect: (id: string) => void; trackerCase: Case | null; diagnosis: Diagnosis | null; steps: TreatmentStep[]; loading: boolean; onSaveDiagnosis: (payload: { confirmed_diagnosis: string; notes: string }) => Promise<void>; onSaveStep: (payload: { step_number: number; step_name: string; notes: string }) => Promise<void>; onGenerateReport: () => void }) {
+  return (
+    <>
+      <div className="workspace-head"><div><p className="eyebrow">ACTIVE TREATMENT REGISTER</p><h2>In progress <span>{cases.length} assigned case(s)</span></h2></div></div>
+      <div className="queue-layout treatment-layout">
+        <Table>
+          <div className="table-labels"><span>SPECIES / VILLAGE</span><span>PRIORITY</span><span>STATUS</span><span>TREATMENT</span></div>
+          {cases.map((item) => <button className={`case-row ${item.priority === 'red_flag' ? 'red-row' : ''} ${item.id === selectedId ? 'selected' : ''}`} key={item.id} onClick={() => onSelect(item.id)}><span><strong>{item.species} · {item.village}</strong><small>{item.id} · assigned {timeAgo(item.created_at)}</small></span><span><i className={`priority-dot ${item.priority}`} />{priorityLabel(item.priority)}</span><span className="status status-in_progress">In progress</span><small>{progress[item.id] ?? 0} of 4 steps complete</small></button>)}
+          {!cases.length && <p className="empty-state">No active treatment cases assigned to you.</p>}
+        </Table>
+        {trackerCase && <TreatmentTracker item={trackerCase} diagnosis={diagnosis} steps={steps} loading={loading} onSaveDiagnosis={onSaveDiagnosis} onSaveStep={onSaveStep} onGenerateReport={onGenerateReport} />}
+      </div>
+    </>
+  )
+}
+
+function TreatmentTracker({ item, diagnosis, steps, loading, onSaveDiagnosis, onSaveStep, onGenerateReport }: { item: Case; diagnosis: Diagnosis | null; steps: TreatmentStep[]; loading: boolean; onSaveDiagnosis: (payload: { confirmed_diagnosis: string; notes: string }) => Promise<void>; onSaveStep: (payload: { step_number: number; step_name: string; notes: string }) => Promise<void>; onGenerateReport: () => void }) {
+  const completed = steps.filter((step) => step.completed_at).length
+  return <aside className="detail-panel treatment-panel"><div className="detail-header"><div><p className="eyebrow">TREATMENT PROGRESS</p><h2>{item.species} - {item.village}</h2><p className="case-id">{item.id} · {completed} of 4 steps complete</p></div><span className="status status-in_progress">In progress</span></div><section className="detail-section"><h3>Case summary</h3><p className="symptom-copy">{item.symptoms}</p><div className="meta-grid"><div><small>Herd size</small><strong>{item.herd_size} head</strong></div><div><small>Affected / mortality</small><strong>{item.affected_count} / {item.mortality_count}</strong></div><div><small>Location</small><strong>{item.village}, {item.district}</strong></div><div><small>Vaccination</small><strong>{item.vaccination_status}</strong></div></div></section>{loading ? <p className="empty-state">Loading treatment record...</p> : <><DiagnosisPanel diagnosis={diagnosis} onSave={onSaveDiagnosis} /><section className="detail-section"><div className="section-heading"><h3>Treatment progress</h3><span>Complete in order</span></div><div className="step-list">{steps.map((step, index) => <TreatmentStepEditor key={step.step_number} step={step} locked={index > 0 && !steps[index - 1]?.completed_at} onSave={onSaveStep} />)}</div></section><div className="detail-actions"><button className="primary-button" disabled={completed < 4} title={completed < 4 ? 'Complete all four treatment steps before generating the report.' : undefined} onClick={onGenerateReport}><FileText size={13} /> Generate report</button></div></>}</aside>
+}
+
+function DiagnosisPanel({ diagnosis, onSave }: { diagnosis: Diagnosis | null; onSave: (payload: { confirmed_diagnosis: string; notes: string }) => Promise<void> }) {
+  const [editing, setEditing] = useState(!diagnosis); const [confirmed, setConfirmed] = useState(diagnosis?.confirmed_diagnosis ?? ''); const [notes, setNotes] = useState(diagnosis?.notes ?? '');
+  useEffect(() => { setConfirmed(diagnosis?.confirmed_diagnosis ?? ''); setNotes(diagnosis?.notes ?? ''); setEditing(!diagnosis) }, [diagnosis])
+  if (diagnosis && !editing) return <section className="detail-section"><div className="section-heading"><h3>Diagnosis</h3><button className="text-button" onClick={() => setEditing(true)}>Edit</button></div><div className="audit-grid"><div><small>AI suggestion</small><strong>{diagnosis.ai_suggested_diagnosis}</strong></div><div><small>Vet-confirmed</small><strong>{diagnosis.confirmed_diagnosis}</strong></div></div><p className="record-note">{diagnosis.notes || 'No additional notes recorded.'}</p></section>
+  return <section className="detail-section"><h3>Diagnosis</h3><div className="form-fields compact-fields"><label className="field-group"><span className="field-label">Confirmed diagnosis</span><input value={confirmed} onChange={(event) => setConfirmed(event.target.value)} placeholder="Enter clinical diagnosis" /></label><label className="field-group"><span className="field-label">Clinical notes</span><textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Document the supporting findings" rows={3} /></label><button className="secondary-button" disabled={!confirmed.trim()} onClick={async () => { await onSave({ confirmed_diagnosis: confirmed, notes }); setEditing(false) }}>{diagnosis ? 'Save changes' : 'Save diagnosis'}</button></div></section>
+}
+
+function TreatmentStepEditor({ step, locked, onSave }: { step: TreatmentStep; locked: boolean; onSave: (payload: { step_number: number; step_name: string; notes: string }) => Promise<void> }) {
+  const [editing, setEditing] = useState(!step.completed_at); const [notes, setNotes] = useState(step.notes); const complete = Boolean(step.completed_at)
+  useEffect(() => { setNotes(step.notes); setEditing(!step.completed_at) }, [step])
+  return <article className={`treatment-step ${complete ? 'complete' : ''} ${locked ? 'locked' : ''}`}><div className="step-marker">{complete ? <CheckCircle2 size={16} /> : step.step_number}</div><div className="step-content"><div className="step-heading"><div><strong>{step.step_name}</strong><small>{complete ? `Completed ${new Date(step.completed_at as string).toLocaleString()}` : locked ? 'Complete the previous step first' : 'Pending documentation'}</small></div>{complete && <button className="text-button" onClick={() => setEditing(true)}>Edit</button>}</div>{editing && !locked ? <><textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Add treatment notes" rows={2} /><button className="secondary-button" onClick={async () => { await onSave({ step_number: step.step_number, step_name: step.step_name, notes }); setEditing(false) }}>Mark complete</button></> : <p className="record-note">{step.notes || 'No notes recorded.'}</p>}</div></article>
+}
+
+function ReportView({ item, diagnosis, steps, vet, onBack, onCloseAndSend }: { item: Case; diagnosis: Diagnosis; steps: TreatmentStep[]; vet: Vet; onBack: () => void; onCloseAndSend: () => Promise<void> }) {
+  const [sent, setSent] = useState(false)
+  return <div className="report-screen"><div className="report-actions"><button className="secondary-button" onClick={onBack}>Back to treatment</button><div><button className="secondary-button" onClick={() => window.print()}><FileText size={13} /> Download / Print</button><button className="primary-button" disabled={sent} onClick={async () => { await onCloseAndSend(); setSent(true) }}>{sent ? 'Report submitted' : 'Send to district office'}</button></div></div><article className="official-report"><header className="report-letterhead"><img src={logoAsset} alt="PashuRakshak shield" /><div><strong>PashuRakshak</strong><h1>Maharashtra Livestock Register</h1><small>District treatment completion report</small></div><div className="report-reference"><strong>{item.id}</strong><span>{new Date().toLocaleDateString()}</span></div></header>{sent && <p className="success-banner">Report submitted for district review. Government system integration is not connected in this prototype.</p>}<div className="report-title"><p className="eyebrow">OFFICIAL CASE REPORT</p><h2>{item.species} case - {item.village}, {item.district}</h2></div>{item.priority === 'red_flag' && <div className="report-escalation"><HeartPulse size={16} /> Red-flag protocol: this case was flagged for district-level visibility.</div>}<ReportSection title="Case particulars"><div className="report-grid"><ReportField label="Case ID" value={item.id} /><ReportField label="Date reported" value={new Date(item.created_at).toLocaleString()} /><ReportField label="Date treated" value={new Date().toLocaleDateString()} /><ReportField label="Village / district" value={`${item.village}, ${item.district}`} /><ReportField label="Species" value={item.species} /><ReportField label="Herd size" value={`${item.herd_size} head`} /><ReportField label="Affected / mortality" value={`${item.affected_count} / ${item.mortality_count}`} /><ReportField label="Vaccination status" value={item.vaccination_status} /></div></ReportSection><ReportSection title="Clinical presentation"><p>{item.symptoms}</p></ReportSection><ReportSection title="Diagnosis audit trail"><div className="report-grid"><ReportField label="AI-suggested diagnosis" value={diagnosis.ai_suggested_diagnosis} /><ReportField label="Vet-confirmed diagnosis" value={diagnosis.confirmed_diagnosis} /></div><p>{diagnosis.notes || 'No additional diagnosis notes.'}</p></ReportSection><ReportSection title="Treatment record"><div className="report-steps">{steps.map((step) => <div key={step.step_number}><strong>{step.step_number}. {step.step_name}</strong><span>{step.notes || 'No notes recorded.'}</span><small>{step.completed_at ? new Date(step.completed_at).toLocaleString() : 'Incomplete'}</small></div>)}</div></ReportSection><ReportSection title="Assigned veterinarian"><ReportField label="Officer" value={`${vet.name} (${vet.id})`} /></ReportSection></article></div>
+}
+
+function ReportSection({ title, children }: { title: string; children: ReactNode }) { return <section className="report-section"><p className="eyebrow">{title}</p>{children}</section> }
+function ReportField({ label, value }: { label: string; value: string }) { return <div><small>{label}</small><strong>{value}</strong></div> }
 
 function TableRows({ cases, selectedId, onSelect }: { cases: Case[]; selectedId?: string | null; onSelect: (id: string) => void }) {
   return (

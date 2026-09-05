@@ -47,6 +47,23 @@ export type DashboardSummary = {
   by_priority: Record<CasePriority, number>
 }
 
+export type Diagnosis = {
+  case_id: string
+  vet_id: string
+  ai_suggested_diagnosis: string
+  confirmed_diagnosis: string
+  notes: string
+  created_at: string
+}
+
+export type TreatmentStep = {
+  step_number: number
+  step_name: string
+  notes: string
+  proof_url: string | null
+  completed_at: string | null
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: { 'Content-Type': 'application/json' },
@@ -71,6 +88,10 @@ export const api = {
     return request<Case[]>(`/cases${params ? `?${params}` : ''}`)
   },
   getSimilarCases: (caseId: string) => request<SimilarCase[]>(`/cases/${caseId}/similar`),
+  getDiagnosis: (caseId: string) => request<Diagnosis | null>(`/cases/${caseId}/diagnosis`),
+  saveDiagnosis: (caseId: string, payload: { confirmed_diagnosis: string; notes: string }) => request<Diagnosis>(`/cases/${caseId}/diagnosis`, { method: 'POST', body: JSON.stringify(payload) }),
+  getTreatmentSteps: (caseId: string) => request<TreatmentStep[]>(`/cases/${caseId}/treatment-steps`),
+  saveTreatmentStep: (caseId: string, payload: { step_number: number; step_name: string; notes: string; proof_url?: string | null }) => request<TreatmentStep>(`/cases/${caseId}/treatment-steps`, { method: 'POST', body: JSON.stringify(payload) }),
   assignCase: (caseId: string) => request<Case>(`/cases/${caseId}/assign`, { method: 'POST' }),
   closeCase: (caseId: string) => request<Case>(`/cases/${caseId}/close`, { method: 'POST' }),
   getSummary: () => request<DashboardSummary>('/dashboard/summary'),
