@@ -16,6 +16,10 @@
 /* Sidebar Navigation */
 .sidebar {
   width: 280px;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
   background-color: var(--dark-sidebar);
   color: #F3F4F6;
   padding: 24px 20px;
@@ -1175,6 +1179,8 @@ nav a b {
 
   .sidebar {
     width: 100%;
+    height: auto;
+    position: static;
     border-right: 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     padding: 18px 16px;
