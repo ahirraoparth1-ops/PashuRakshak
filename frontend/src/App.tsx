@@ -469,8 +469,8 @@ function ReportField({ label, value }: { label: string; value: string }) { retur
 function CaseCard({ item, selected, onSelect, progressText }: { item: Case; selected?: boolean; onSelect: (id: string) => void; progressText?: string }) {
   const isRedFlag = item.priority === 'red_flag'
   const isHigh = item.priority === 'high'
-  const priorityColor = isRedFlag ? '#DC2626' : isHigh ? '#D97706' : '#16A34A'
-  const priorityBg = isRedFlag ? '#FDF0ED' : isHigh ? '#FEF3C7' : '#EBF7EE'
+  const priorityColor = isRedFlag ? '#9A4A3F' : isHigh ? '#8A6B2E' : '#3F6B4A'
+  const priorityBg = isRedFlag ? '#F5E6E4' : isHigh ? '#F5EDDD' : '#E6F2E9'
 
   return (
     <article className={`case-card ${selected ? 'selected' : ''} ${isRedFlag ? 'red-flag-card' : ''}`} onClick={() => onSelect(item.id)}>

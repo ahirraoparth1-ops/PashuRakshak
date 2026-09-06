@@ -470,7 +470,7 @@ nav a b {
 }
 
 .summary-card.tone-peach .stat-pill-tag {
-  color: var(--red-flag-text);
+  color: #9A4A3F;
 }
 
 /* Workspace Headings */
@@ -533,7 +533,7 @@ nav a b {
 
 .search-box:focus-within {
   border-color: var(--brand-green);
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
 }
 
 .search-box input {
@@ -563,7 +563,7 @@ nav a b {
 
 .filter-select:focus {
   border-color: var(--brand-green);
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
   outline: none;
 }
 
@@ -590,18 +590,19 @@ nav a b {
 
 .case-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
   background-color: #FAFAF8;
 }
 
 .case-card.selected {
-  border: 2px solid var(--brand-green);
-  background-color: var(--mint-tint);
-  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.12);
+  border-color: var(--card-border);
+  border-left: 3px solid var(--brand-green);
+  background-color: #F4F8F5;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .case-card.red-flag-card {
-  border-left: 4px solid var(--red-flag-text);
+  border-left: 3px solid #9A4A3F;
 }
 
 .case-card-left {
@@ -752,15 +753,15 @@ nav a b {
   display: inline-block;
   flex-shrink: 0;
   margin-right: 6px;
-  background-color: var(--brand-green);
+  background-color: #3F6B4A;
 }
 
 .priority-dot.red_flag {
-  background-color: var(--red-flag-text);
+  background-color: #9A4A3F;
 }
 
 .priority-dot.high {
-  background-color: var(--high-text);
+  background-color: #8A6B2E;
 }
 
 .status, .status-pill {
@@ -775,23 +776,23 @@ nav a b {
 }
 
 .status-new {
-  color: #2563EB;
-  background-color: var(--pastel-blue);
+  color: #3D5A73;
+  background-color: #E6ECF2;
 }
 
 .status-assigned {
-  color: #D97706;
-  background-color: #FEF3C7;
+  color: #8A6B2E;
+  background-color: #F5EDDD;
 }
 
 .status-in_progress {
-  color: #15803D;
-  background-color: var(--pastel-mint);
+  color: #3F6B4A;
+  background-color: #E6F2E9;
 }
 
 .status-closed {
-  color: #4B5563;
-  background-color: #F3F4F6;
+  color: #555962;
+  background-color: #EBECEE;
 }
 
 /* Detail Panel Styling */
