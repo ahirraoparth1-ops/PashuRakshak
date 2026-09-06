@@ -4,13 +4,19 @@
   --brand-green: #16A34A;        /* Primary action green, "Rakshak" wordmark */
   --brand-green-dark: #15803D;   /* Hover / pressed green */
   --mint-tint: #F0FBF4;          /* Soft green tint for hover states & pills */
-  --app-bg: #FFFFFF;             /* Clean white app background */
+  --app-bg: #FAF9F5;             /* Soft cream app background */
   --ink: #111827;                /* Dark gray/black for headings & primary text */
   --muted-grey: #6B7280;         /* Body text & secondary labels */
   --pill-bg: #DCFCE7;            /* Light green pill background */
-  --card-border: #E5E7EB;        /* Subtle light-grey card border */
+  --card-border: #E8E5DF;        /* Soft subtle card border */
   --tag-yellow: #FEF3C7;         /* Soft yellow pill background */
   --tag-yellow-text: #B45309;    /* Dark amber text for yellow pills */
+
+  /* Farmer App Pastel Card Palette */
+  --pastel-tan: #FBF4EB;
+  --pastel-mint: #EBF7EE;
+  --pastel-blue: #EBF3FA;
+  --pastel-peach: #FDF0ED;
 
   /* Priority & Status Semantic Tints */
   --red-flag-bg: #FEE2E2;

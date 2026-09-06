@@ -234,18 +234,20 @@ function InProgressView({ cases, selectedId, progress, onSelect, trackerCase, di
         </div>
       </div>
       <div className="queue-layout treatment-layout">
-        <Table>
-          <div className="table-labels"><span>SPECIES / VILLAGE</span><span>PRIORITY</span><span>STATUS</span><span>TREATMENT</span></div>
-          {cases.map((item) => (
-            <button className={`case-row ${item.priority === 'red_flag' ? 'red-row' : ''} ${item.id === selectedId ? 'selected' : ''}`} key={item.id} onClick={() => onSelect(item.id)}>
-              <span><strong>{item.species} · {item.village}</strong><small>{item.id} · assigned {timeAgo(item.created_at)}</small></span>
-              <span><i className={`priority-dot ${item.priority}`} />{priorityLabel(item.priority)}</span>
-              <span className="status status-in_progress">In progress</span>
-              <small>{progress[item.id] ?? 0} of 4 steps complete</small>
-            </button>
-          ))}
-          {!cases.length && <p className="empty-state">No active treatment cases assigned to you.</p>}
-        </Table>
+        <div className="queue-list-section">
+          <CardList>
+            {cases.map((item) => (
+              <CaseCard
+                key={item.id}
+                item={item}
+                selected={item.id === selectedId}
+                onSelect={onSelect}
+                progressText={`${progress[item.id] ?? 0} of 4 steps complete`}
+              />
+            ))}
+            {!cases.length && <p className="empty-state">No active treatment cases assigned to you.</p>}
+          </CardList>
+        </div>
         {trackerCase && <TreatmentTracker item={trackerCase} diagnosis={diagnosis} steps={steps} loading={loading} onSaveDiagnosis={onSaveDiagnosis} onSaveStep={onSaveStep} onGenerateReport={onGenerateReport} />}
       </div>
     </>
@@ -464,49 +466,47 @@ function ReportView({ item, diagnosis, steps, vet, onBack, onCloseAndSend }: { i
 function ReportSection({ title, children }: { title: string; children: ReactNode }) { return <section className="report-section"><span className="eyebrow">{title}</span>{children}</section> }
 function ReportField({ label, value }: { label: string; value: string }) { return <div><small>{label}</small><strong>{value}</strong></div> }
 
-function TableRows({ cases, selectedId, onSelect }: { cases: Case[]; selectedId?: string | null; onSelect: (id: string) => void }) {
+function CaseCard({ item, selected, onSelect, progressText }: { item: Case; selected?: boolean; onSelect: (id: string) => void; progressText?: string }) {
+  const isRedFlag = item.priority === 'red_flag'
+  const isHigh = item.priority === 'high'
+  const priorityColor = isRedFlag ? '#DC2626' : isHigh ? '#D97706' : '#16A34A'
+  const priorityBg = isRedFlag ? '#FDF0ED' : isHigh ? '#FEF3C7' : '#EBF7EE'
+
   return (
-    <>
-      {cases.map((item) => (
-        <button className={`case-row ${item.priority === 'red_flag' ? 'red-row' : ''} ${item.id === selectedId ? 'selected' : ''}`} key={item.id} onClick={() => onSelect(item.id)}>
-          <span>
-            <strong>{item.species} · {item.village}</strong>
-            <small>{item.reported_by} · {item.id}</small>
-          </span>
-          <span>
-            <i className={`priority-dot ${item.priority}`} />
-            {priorityLabel(item.priority)}
-          </span>
-          <span className={`status status-${item.status}`}>{statusLabel(item.status)}</span>
-          <small>{timeAgo(item.created_at)}</small>
-        </button>
-      ))}
-    </>
+    <article className={`case-card ${selected ? 'selected' : ''} ${isRedFlag ? 'red-flag-card' : ''}`} onClick={() => onSelect(item.id)}>
+      <div className="case-card-left">
+        <span className="case-priority-badge" style={{ backgroundColor: priorityBg }} title={`Priority: ${priorityLabel(item.priority)}`}>
+          <span className="priority-indicator-dot" style={{ backgroundColor: priorityColor }} />
+        </span>
+        <div className="case-card-main">
+          <div className="case-card-header">
+            <strong className="case-title">{item.species} · {item.village}</strong>
+            <span className={`status-pill status-${item.status}`}>
+              {statusLabel(item.status)}
+            </span>
+          </div>
+          <p className="case-card-subtext">
+            Reported by {item.reported_by} · <span className="id-code">{item.id}</span> · {progressText || timeAgo(item.created_at)}
+          </p>
+        </div>
+      </div>
+      <ChevronDown size={16} className="case-card-arrow" />
+    </article>
   )
 }
 
-function Table({ children }: { children: ReactNode }) {
-  return (
-    <section className="queue-panel">
-      <div className="table-labels">
-        <span>SPECIES / REPORTER</span>
-        <span>PRIORITY</span>
-        <span>STATUS</span>
-        <span>REPORTED</span>
-      </div>
-      {children}
-    </section>
-  )
+function CardList({ children }: { children: ReactNode }) {
+  return <div className="card-list-container">{children}</div>
 }
 
 function Overview({ summary, cases, redFlags, openCase }: { summary: DashboardSummary | null; cases: Case[]; redFlags: Case[]; openCase: (id: string) => void }) {
   return (
     <>
       <section className="summary-grid" aria-label="Case summary">
-        <SummaryCard icon={<ClipboardList />} label="Open cases" value={String(summary?.total ?? cases.length)} detail="Live register" tag="30,513 TOTAL REPORTED" tone="green" isPrimary />
-        <SummaryCard icon={<HeartPulse />} label="Red-flag cases" value={String(summary?.by_priority.red_flag ?? redFlags.length)} detail="Immediate review" tag="HIGH PRIORITY" tone="red" />
-        <SummaryCard icon={<CheckCircle2 />} label="Closed cases" value={String(summary?.by_status.closed ?? 0)} detail="Verified & resolved" tag="TREATED" tone="green" />
-        <SummaryCard icon={<Stethoscope />} label="In progress" value={String(summary?.by_status.in_progress ?? 0)} detail="Active treatment" tag="ONGOING" tone="yellow" />
+        <SummaryCard icon={<ClipboardList size={20} />} label="Open cases" value={String(summary?.total ?? cases.length)} detail="Live register" tag="30,513 TOTAL REPORTED" tone="tan" isPrimary />
+        <SummaryCard icon={<HeartPulse size={20} />} label="Red-flag cases" value={String(summary?.by_priority.red_flag ?? redFlags.length)} detail="Immediate review" tag="HIGH PRIORITY" tone="peach" />
+        <SummaryCard icon={<CheckCircle2 size={20} />} label="Closed cases" value={String(summary?.by_status.closed ?? 0)} detail="Verified & resolved" tag="TREATED" tone="mint" />
+        <SummaryCard icon={<Stethoscope size={20} />} label="In progress" value={String(summary?.by_status.in_progress ?? 0)} detail="Active treatment" tag="ONGOING" tone="blue" />
       </section>
       <div className="workspace-head">
         <div>
@@ -514,10 +514,12 @@ function Overview({ summary, cases, redFlags, openCase }: { summary: DashboardSu
           <h2>Red-flag cases <span>{redFlags.length} open</span></h2>
         </div>
       </div>
-      <Table>
-        <TableRows cases={redFlags} onSelect={openCase} />
+      <CardList>
+        {redFlags.map((item) => (
+          <CaseCard key={item.id} item={item} onSelect={openCase} />
+        ))}
         {!redFlags.length && <p className="empty-state">No red-flag cases right now.</p>}
-      </Table>
+      </CardList>
     </>
   )
 }
@@ -533,20 +535,24 @@ function Queue({ cases, total, selected, selectedId, query, setQuery, status, se
         <button className="primary-button"><FileText size={14} /> New case</button>
       </div>
       <div className="queue-layout">
-        <Table>
-          <div className="filters">
+        <div className="queue-list-section">
+          <div className="filters-bar">
             <label className="search-box">
-              <Search size={14} />
-              <input aria-label="Search cases" placeholder="Search species, reporter or case ID" value={query} onChange={(event) => setQuery(event.target.value)} />
+              <Search size={16} />
+              <input aria-label="Search cases" placeholder="Search species, reporter or case ID..." value={query} onChange={(event) => setQuery(event.target.value)} />
             </label>
-            <select aria-label="Filter cases" value={status} onChange={(event) => setStatus(event.target.value as '' | CaseStatus)}>
+            <select aria-label="Filter cases" className="filter-select" value={status} onChange={(event) => setStatus(event.target.value as '' | CaseStatus)}>
               {statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
             <button className="filter-button"><ShieldCheck size={14} /> Filters</button>
           </div>
-          <TableRows cases={cases} selectedId={selectedId} onSelect={onSelect} />
-          {!cases.length && <p className="empty-state">No cases match this search.</p>}
-        </Table>
+          <CardList>
+            {cases.map((item) => (
+              <CaseCard key={item.id} item={item} selected={item.id === selectedId} onSelect={onSelect} />
+            ))}
+            {!cases.length && <p className="empty-state">No cases match this search.</p>}
+          </CardList>
+        </div>
         {showDetail && <button className="mobile-close" aria-label="Close case details" onClick={() => setShowDetail(false)}><X size={16} /></button>}
         {selected && <Detail item={selected} similar={similar} loading={similarLoading} onAssign={() => onAssign(selected.id)} onClose={() => onClose(selected.id)} />}
       </div>
@@ -563,15 +569,18 @@ function Patients({ cases, openCase }: { cases: Case[]; openCase: (id: string) =
           <h2>My patients <span>{cases.length} case(s)</span></h2>
         </div>
       </div>
-      <Table>
-        <TableRows cases={cases} onSelect={openCase} />
+      <CardList>
+        {cases.map((item) => (
+          <CaseCard key={item.id} item={item} onSelect={openCase} />
+        ))}
         {!cases.length && <p className="empty-state">No cases assigned to you yet - assign one from the case queue.</p>}
-      </Table>
+      </CardList>
     </>
   )
 }
 
 function Team({ team, loading, currentVet }: { team: Vet[]; loading: boolean; currentVet: string }) {
+  const tones = ['tan', 'mint', 'blue', 'peach']
   return (
     <>
       <div className="workspace-head">
@@ -582,12 +591,15 @@ function Team({ team, loading, currentVet }: { team: Vet[]; loading: boolean; cu
       </div>
       <section className="summary-grid">
         {loading && <p className="empty-state">Loading team...</p>}
-        {!loading && team.map((member) => (
-          <article className="summary-card" key={member.id}>
-            <span className="card-icon"><Users /></span>
-            <p>{member.name}{member.id === currentVet ? ' (you)' : ''}</p>
-            <strong>{member.region}</strong>
-            <small>Veterinarian</small>
+        {!loading && team.map((member, idx) => (
+          <article className={`summary-card team-card tone-${tones[idx % tones.length]}`} key={member.id}>
+            <div className="stat-top">
+              <span className="white-icon-badge"><Users size={20} /></span>
+              {member.id === currentVet && <span className="stat-pill-tag">YOU</span>}
+            </div>
+            <p className="team-name">{member.name}</p>
+            <strong className="team-region">{member.region} District</strong>
+            <small className="team-role">Veterinary Officer</small>
           </article>
         ))}
         {!loading && !team.length && <p className="empty-state">Couldn't load the team directory.</p>}
@@ -605,10 +617,16 @@ function Settings({ vet, logout }: { vet: Vet; logout: () => void }) {
           <h2>Settings</h2>
         </div>
       </div>
-      <section className="detail-panel settings-card" style={{ maxWidth: 460 }}>
+      <section className="detail-panel settings-card tone-mint" style={{ maxWidth: 520, borderRadius: 20 }}>
         <div className="detail-section">
-          <h3>Officer Profile</h3>
-          <div className="meta-grid">
+          <div className="settings-profile-head">
+            <span className="white-icon-badge avatar-badge">{initials(vet.name)}</span>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{vet.name}</h3>
+              <p className="settings-subtext" style={{ margin: '2px 0 0', color: 'var(--muted-grey)', fontSize: 12 }}>{vet.id} · {vet.region} District</p>
+            </div>
+          </div>
+          <div className="meta-grid" style={{ marginTop: 20 }}>
             <div><small>Officer Name</small><strong>{vet.name}</strong></div>
             <div><small>Assigned District</small><strong>{vet.region}</strong></div>
             <div><small>Officer ID</small><strong>{vet.id}</strong></div>
@@ -616,7 +634,7 @@ function Settings({ vet, logout }: { vet: Vet; logout: () => void }) {
           </div>
         </div>
         <div className="detail-actions">
-          <button className="secondary-button" onClick={logout}><LogOut size={13} /> Log out</button>
+          <button className="secondary-button" onClick={logout}><LogOut size={14} /> Log out</button>
         </div>
       </section>
     </>
@@ -671,12 +689,12 @@ function LoginScreen({ onLogin, error, setError }: { onLogin: (vet: Vet) => void
   )
 }
 
-function SummaryCard({ icon, label, value, detail, tag, isPrimary }: { icon: ReactNode; label: string; value: string; detail: string; tag?: string; tone?: string; isPrimary?: boolean }) {
+function SummaryCard({ icon, label, value, detail, tag, tone = 'mint', isPrimary }: { icon: ReactNode; label: string; value: string; detail: string; tag?: string; tone?: string; isPrimary?: boolean }) {
   return (
-    <article className={`summary-card ${isPrimary ? 'primary-stat' : ''}`}>
+    <article className={`summary-card tone-${tone} ${isPrimary ? 'primary-stat' : ''}`}>
       <div className="stat-top">
         <p>{label}</p>
-        <span className="card-icon">{icon}</span>
+        <span className="white-icon-badge">{icon}</span>
       </div>
       <strong className="stat-number">{value}</strong>
       <div className="stat-bottom">
